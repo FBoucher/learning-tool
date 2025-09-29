@@ -1,0 +1,21 @@
+using LearningTool.Domain;
+
+namespace LearningTool.Services;
+
+public interface IRekaVisionService
+{
+    /// <summary>
+    /// Retrieves a list of videos from the Reka Vision service
+    /// </summary>
+    /// <returns>A list of Video objects</returns>
+    Task<List<Video>> GetAllVideos();
+
+    /// <summary>
+    /// Uploads a video to the Reka Vision service
+    /// </summary>
+    /// <param name="videoUrl">The URL of the video to upload</param>
+    /// <param name="videoName">The name for the video</param>
+    /// <param name="index">Whether to index the video</param>
+    /// <returns>The uploaded video information</returns>
+    Task<Video> AddVideo(string videoUrl, string videoName, bool index = true);
+}
