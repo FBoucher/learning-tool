@@ -81,13 +81,12 @@
     </FluentDialogFooter>
 </FluentDialog>
 
-<!-- This page is rendered in SSR mode, so the FluentDataGrid component does not offer any interactivity (like sorting). -->
 <FluentDataGrid Id="videogrid" Items="@videos" Loading="@(videos == null)">
     <ChildContent>
-        <PropertyColumn Title="Video ID" Property="@(c => c!.VideoId)" />
-        <PropertyColumn Title="Status" Property="@(c => c!.IndexingStatus)" />
-        <PropertyColumn Title="Type" Property="@(c => c!.IndexingType)" "/>
-        <PropertyColumn Title="Title" Property="@(c => c!.Metadata!.Title)" />
+        <PropertyColumn Title="Video ID" Property="@(c => c!.VideoId.ToString() ?? string.Empty)" />
+        <PropertyColumn Title="Status"  Property="@(c => c!.IndexingStatus.ToString() ?? string.Empty)" Sortable="true"/>
+        <PropertyColumn Title="Type"    Property="@(c => c!.IndexingType ?? string.Empty)"  Sortable="true"/>
+        <PropertyColumn Title="Title"   Property="@(c => c!.Title ?? string.Empty)"         Sortable="true"/>
         <TemplateColumn Title="Actions">
             <FluentButton Appearance="Appearance.Outline" @onclick="@(() => DeleteVideo(context.VideoId))">
                 Delete
@@ -115,18 +114,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
-
         try
         {
-            // Fetch videos from RekaVisionService
             var videoList = await RekaVisionService.GetAllVideos();
             videos = videoList.AsQueryable();
         }
         catch (Exception ex)
         {
-            // Log the error and provide fallback data or empty list
             Console.WriteLine($"Error fetching videos: {ex.Message}");
             videos = new List<Video>().AsQueryable();
         }

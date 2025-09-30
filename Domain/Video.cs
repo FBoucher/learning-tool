@@ -29,6 +29,11 @@ public class Video
     /// Type of indexing applied to the video
     /// </summary>
     public string IndexingType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Title of the video from metadata
+    /// </summary>
+    public string? Title => Metadata?.Title;
 }
 
 /// <summary>

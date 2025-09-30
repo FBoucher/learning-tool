@@ -30,6 +30,7 @@ public class RekaVisionService : IRekaVisionService
     /// <returns>A list of Video objects</returns>
     public async Task<List<Video>> GetAllVideos()
     {
+        var videos = new List<Video>();
         try
         {
             _logger.LogInformation("Fetching videos from Reka Vision API");
@@ -37,7 +38,7 @@ public class RekaVisionService : IRekaVisionService
             // Configure the HTTP request
             var request = new HttpRequestMessage(HttpMethod.Post, "https://vision-agent.api.reka.ai/videos/get");
             request.Headers.Add("X-Api-Key", _rekaAPIKey);
-            
+
             // Add empty JSON content with proper Content-Type header
             request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
 
@@ -49,10 +50,7 @@ public class RekaVisionService : IRekaVisionService
             var responseContent = await response.Content.ReadAsStringAsync();
 
             // Save response to file
-            var responseFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "videos_response.json");
-            Directory.CreateDirectory(Path.GetDirectoryName(responseFilePath)!);
-            File.WriteAllText(responseFilePath, responseContent);
-            _logger.LogInformation("Response saved to: {FilePath}", responseFilePath);
+            SaveResponseToFile(responseContent);
 
             // Deserialize the response
             var rekaResponse = JsonSerializer.Deserialize<RekaVideoResponse>(responseContent, new JsonSerializerOptions
@@ -67,7 +65,7 @@ public class RekaVisionService : IRekaVisionService
             }
 
             // Convert to domain models
-            var videos = rekaResponse.Results.Select(dto => new Video
+            videos = rekaResponse.Results.Select(dto => new Video
             {
                 VideoId = Guid.TryParse(dto.VideoId, out var guid) ? guid : Guid.NewGuid(),
                 Url = dto.Url,
@@ -77,23 +75,25 @@ public class RekaVisionService : IRekaVisionService
             }).ToList();
 
             _logger.LogInformation("Successfully retrieved {Count} videos", videos.Count);
-            return videos;
+            //return videos;
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "HTTP error occurred while fetching videos");
-            throw new InvalidOperationException("Failed to fetch videos from Reka Vision API", ex);
+            //throw new InvalidOperationException("Failed to fetch videos from Reka Vision API", ex);
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Error deserializing response from Reka Vision API");
-            throw new InvalidOperationException("Failed to parse response from Reka Vision API", ex);
+            //throw new InvalidOperationException("Failed to parse response from Reka Vision API", ex);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error occurred while fetching videos");
-            throw;
+            //throw;
         }
+
+        return videos;
     }
 
     /// <summary>
@@ -168,6 +168,19 @@ public class RekaVisionService : IRekaVisionService
             _logger.LogError(ex, "Unexpected error occurred while uploading video {VideoName}", videoName);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Saves response content to a timestamped file in the wwwroot directory
+    /// </summary>
+    /// <param name="responseContent">The response content to save</param>
+    private void SaveResponseToFile(string responseContent)
+    {
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HHmm");
+        var responseFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", $"videos_response_{timestamp}.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(responseFilePath)!);
+        File.WriteAllText(responseFilePath, responseContent);
+        _logger.LogInformation("Response saved to: {FilePath}", responseFilePath);
     }
 
     private IndexingStatus ParseIndexingStatus(string status)
