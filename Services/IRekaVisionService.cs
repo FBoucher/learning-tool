@@ -32,4 +32,12 @@ public interface IRekaVisionService
     /// <param name="query">The search query</param>
     /// <returns>A list of search results with timestamps</returns>
     Task<List<SearchResult>> Search(string query);
+
+    /// <summary>
+    /// Asks a question about a specific video
+    /// </summary>
+    /// <param name="videoId">The ID of the video to ask about</param>
+    /// <param name="question">The question to ask</param>
+    /// <returns>The answer to the question</returns>
+    Task<QAAnswer> AskQuestion(string videoId, string question);
 }

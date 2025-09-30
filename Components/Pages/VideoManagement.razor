@@ -56,7 +56,21 @@
     {
         <div >
             <h3>For this video</h3>
+            <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Center">
+                <FluentTextField Label="Search" @bind-Value="searchTerm" />
+                <FluentButton Appearance="Appearance.Outline" @onclick="AskQuestion" Disabled="@isSearching">
+                    Ask
+                </FluentButton>
+            </FluentStack>
 
+            @if (!string.IsNullOrEmpty(qaAnswer))
+            {
+                <FluentDivider Role="DividerRole.Separator"></FluentDivider>
+                <div>
+                    <h4>Answer:</h4>
+                    <p>@qaAnswer</p>
+                </div>
+            }
         </div>
     }
     else
@@ -115,6 +129,8 @@
 
     private bool isSearching = false;
 
+    private string qaAnswer = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -158,27 +174,92 @@
     }
 
     private async Task SearchVideos()
+
     {
+
         isSearching = true;
+
         try
+
         {
+
             var results = await RekaVisionService.Search(searchTerm);
+
             foreach (var result in results)
+
             {
+
                 result.Title = myVideos.FirstOrDefault(v => v.VideoId == result.VideoId)?.Title ?? string.Empty;
+
             }
+
             searchResults = results;
+
             searchResultCount = results.Count;
+
         }
+
         catch (Exception ex)
+
         {
+
             Console.WriteLine($"Error searching videos: {ex.Message}");
+
             searchResults = new();
+
             searchResultCount = 0;
+
         }
+
         finally
+
         {
+
             isSearching = false;
+
         }
+
+    }
+
+    private async Task AskQuestion()
+
+    {
+
+        if (selectedVideos.Any())
+
+        {
+
+            isSearching = true;
+
+            try
+
+            {
+
+                var answer = await RekaVisionService.AskQuestion(selectedVideos.First().VideoId.ToString(), searchTerm);
+
+                qaAnswer = answer.Answer;
+
+            }
+
+            catch (Exception ex)
+
+            {
+
+                Console.WriteLine($"Error asking question: {ex.Message}");
+
+                qaAnswer = "Error occurred while asking the question.";
+
+            }
+
+            finally
+
+            {
+
+                isSearching = false;
+
+            }
+
+        }
+
     }
 }

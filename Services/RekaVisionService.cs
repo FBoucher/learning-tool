@@ -209,6 +209,67 @@ public class RekaVisionService : IRekaVisionService
     }
 
     /// <summary>
+    /// Asks a question about a specific video
+    /// </summary>
+    /// <param name="videoId">The ID of the video to ask about</param>
+    /// <param name="question">The question to ask</param>
+    /// <returns>The answer to the question</returns>
+    public async Task<QAAnswer> AskQuestion(string videoId, string question)
+    {
+        _logger.LogInformation("Asking question about video {VideoId}: {Question}", videoId, question);
+
+        var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/qa/chat");
+
+        // Create the request body
+        var requestBody = new
+        {
+            video_id = videoId,
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = question
+                }
+            }
+        };
+        var jsonContent = JsonSerializer.Serialize(requestBody);
+        request.Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+
+        var responseContent = await SendRequestAsync(request, $"ask question about video {videoId}");
+
+        try
+        {
+            // Deserialize the response
+            var rekaResponse = JsonSerializer.Deserialize<RekaQAAnswerDto>(responseContent, _jsonOptions);
+
+            if (rekaResponse == null)
+            {
+                _logger.LogWarning("No answer found in response or response format unexpected");
+                throw new InvalidOperationException("Failed to parse QA response from Reka Vision API");
+            }
+
+            // Convert to domain model
+            var answer = new QAAnswer
+            {
+                Answer = rekaResponse.answer,
+                Confidence = rekaResponse.confidence,
+                VideoId = Guid.Parse(rekaResponse.video_id),
+                Question = rekaResponse.question,
+                Timestamp = DateTimeOffset.FromUnixTimeSeconds(rekaResponse.timestamp).DateTime
+            };
+
+            _logger.LogInformation("Successfully retrieved answer for question about video {VideoId}", videoId);
+            return answer;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error deserializing QA response from Reka Vision API");
+            throw new InvalidOperationException("Failed to parse QA response from Reka Vision API", ex);
+        }
+    }
+
+    /// <summary>
     /// Creates an HTTP request message with the API key header
     /// </summary>
     /// <param name="method">The HTTP method</param>
