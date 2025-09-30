@@ -171,6 +171,48 @@ public class RekaVisionService : IRekaVisionService
     }
 
     /// <summary>
+    /// Deletes videos from the Reka Vision service
+    /// </summary>
+    /// <param name="videoIds">The IDs of the videos to delete</param>
+    /// <returns>A task representing the asynchronous operation</returns>
+    public async Task DeleteVideos(IEnumerable<Guid> videoIds)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting videos with IDs: {VideoIds}", string.Join(", ", videoIds));
+
+            // Configure the HTTP request
+            var request = new HttpRequestMessage(HttpMethod.Delete, "https://vision-agent.api.reka.ai/videos/delete");
+            request.Headers.Add("X-Api-Key", _rekaAPIKey);
+            request.Headers.Add("Content-Type", "application/json");
+
+            // Create the request body
+            var requestBody = new
+            {
+                video_ids = videoIds.Select(id => id.ToString()).ToArray()
+            };
+            var jsonContent = JsonSerializer.Serialize(requestBody);
+            request.Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+
+            // Make the HTTP call asynchronously
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            _logger.LogInformation("Successfully deleted videos with IDs: {VideoIds}", string.Join(", ", videoIds));
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while deleting videos");
+            throw new InvalidOperationException("Failed to delete videos from Reka Vision API", ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while deleting videos");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Saves response content to a timestamped file in the wwwroot directory
     /// </summary>
     /// <param name="responseContent">The response content to save</param>

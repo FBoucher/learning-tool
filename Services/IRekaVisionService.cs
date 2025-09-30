@@ -18,4 +18,11 @@ public interface IRekaVisionService
     /// <param name="index">Whether to index the video</param>
     /// <returns>The uploaded video information</returns>
     Task<Video> AddVideo(string videoUrl, string videoName, bool index = true);
+
+    /// <summary>
+    /// Deletes videos from the Reka Vision service
+    /// </summary>
+    /// <param name="videoIds">The IDs of the videos to delete</param>
+    /// <returns>A task representing the asynchronous operation</returns>
+    Task DeleteVideos(IEnumerable<Guid> videoIds);
 }

@@ -81,12 +81,11 @@
     </FluentDialogFooter>
 </FluentDialog>
 
-<FluentDataGrid Id="videogrid" Items="@videos" Loading="@(videos == null)">
+<FluentDataGrid Id="videogrid" Items="@videos" RowSize="@DataGridRowSize.Medium">
     <ChildContent>
-        <PropertyColumn Title="Video ID" Property="@(c => c!.VideoId.ToString() ?? string.Empty)" />
+        <PropertyColumn Title="Title"   Property="@(c => c!.Title ?? string.Empty)"         Sortable="true"/>
         <PropertyColumn Title="Status"  Property="@(c => c!.IndexingStatus.ToString() ?? string.Empty)" Sortable="true"/>
         <PropertyColumn Title="Type"    Property="@(c => c!.IndexingType ?? string.Empty)"  Sortable="true"/>
-        <PropertyColumn Title="Title"   Property="@(c => c!.Title ?? string.Empty)"         Sortable="true"/>
         <TemplateColumn Title="Actions">
             <FluentButton Appearance="Appearance.Outline" @onclick="@(() => DeleteVideo(context.VideoId))">
                 Delete
@@ -183,10 +182,23 @@
         }
     }
 
-    private void DeleteVideo(Guid videoId)
+    private async Task DeleteVideo(Guid videoId)
     {
-        // Placeholder for delete video functionality
-        // TODO: Implement video deletion logic with confirmation
-        Console.WriteLine($"Delete Video button clicked for VideoId: {videoId}");
+        try
+        {
+            // Call the RekaVisionService to delete the video
+            await RekaVisionService.DeleteVideos(new[] { videoId });
+            
+            // Refresh the video list
+            var videoList = await RekaVisionService.GetAllVideos();
+            videos = videoList.AsQueryable();
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting video: {ex.Message}");
+            // TODO: Show error message to user
+        }
     }
 }
