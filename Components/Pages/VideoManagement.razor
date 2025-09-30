@@ -1,14 +1,12 @@
 @page "/videos"
 @attribute [StreamRendering]
-
 @rendermode InteractiveServer
 @inject IRekaVisionService RekaVisionService
+@using LearningTool.Components.Dialog
 
 <PageTitle>Video Management</PageTitle>
 
 <h1>Video Management</h1>
-
-<p>This component demonstrates video management functionality.</p>
 
 <div style="margin-bottom: 1rem;">
     <FluentButton Appearance="Appearance.Accent" @onclick="OpenAddVideoDialog">
@@ -16,76 +14,17 @@
     </FluentButton>
 </div>
 
-<FluentDialog @ref="addVideoDialog" @bind-Hidden="isDialogHidden" Modal="true" TrapFocus="true" aria-labelledby="dialog-title">
-    <FluentDialogHeader ShowDismiss="true">
-        <FluentLabel Typo="Typography.PaneHeader" id="dialog-title">
-            <FluentIcon Value="@(new Icons.Regular.Size24.VideoAdd())" />&nbsp;
-            Add New Video
-        </FluentLabel>
-    </FluentDialogHeader>
-
-    <FluentDialogBody>
-        <div style="display: flex; flex-direction: column; gap: 1rem;">
-            <FluentTextField @bind-Value="newVideoUrl" 
-                           Required="true"
-                           Placeholder="Enter video URL"
-                           Style="width: 100%;">
-                <FluentIcon Value="@(new Icons.Regular.Size16.Link())" Slot="start" />
-                Video URL
-            </FluentTextField>
-
-            <FluentTextField @bind-Value="newVideoName" 
-                           Required="true"
-                           Placeholder="Enter video name"
-                           Style="width: 100%;">
-                <FluentIcon Value="@(new Icons.Regular.Size16.VideoClip())" Slot="start" />
-                Video Name
-            </FluentTextField>
-
-            <FluentCheckbox @bind-Value="shouldIndexVideo" Label="Index video for search" />
-
-            @if (isAddingVideo)
-            {
-                <FluentProgressRing Style="width: 20px; height: 20px; margin: 10px auto;" />
-                <p style="text-align: center; margin: 0;">Adding video...</p>
-            }
-
-            @if (!string.IsNullOrEmpty(addVideoErrorMessage))
-            {
-                <FluentMessageBar Intent="MessageIntent.Error" AllowDismiss="true" @onclose="() => addVideoErrorMessage = string.Empty">
-                    @addVideoErrorMessage
-                </FluentMessageBar>
-            }
-        </div>
-    </FluentDialogBody>
-
-    <FluentDialogFooter>
-        <FluentButton Appearance="Appearance.Accent" 
-                     Disabled="@(isAddingVideo || string.IsNullOrWhiteSpace(newVideoUrl) || string.IsNullOrWhiteSpace(newVideoName))"
-                     @onclick="AddVideo">
-            @if (isAddingVideo)
-            {
-                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowClockwise())" />
-            }
-            else
-            {
-                <FluentIcon Value="@(new Icons.Regular.Size16.Add())" />
-            }
-            &nbsp;Add Video
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Neutral" 
-                     Disabled="@isAddingVideo"
-                     @onclick="CloseAddVideoDialog">
-            Cancel
-        </FluentButton>
-    </FluentDialogFooter>
-</FluentDialog>
-
-<FluentDataGrid Id="videogrid" Items="@videos" RowSize="@DataGridRowSize.Medium">
+<FluentDataGrid Id="videogrid" Items="@videos" RowSize="@DataGridRowSize.Large">
     <ChildContent>
-        <PropertyColumn Title="Title"   Property="@(c => c!.Title ?? string.Empty)"         Sortable="true"/>
-        <PropertyColumn Title="Status"  Property="@(c => c!.IndexingStatus.ToString() ?? string.Empty)" Sortable="true"/>
-        <PropertyColumn Title="Type"    Property="@(c => c!.IndexingType ?? string.Empty)"  Sortable="true"/>
+        <PropertyColumn Title="Title" Property="@(c => c!.Title ?? string.Empty)" Sortable="true" />
+
+        <TemplateColumn Title="Thumbnail">
+                <img src="@(context!.Metadata.Thumbnail)" alt="Thumbnail" style="width: 100px; height: auto;" />
+        </TemplateColumn>
+
+        <PropertyColumn Title="Status" Property="@(c => c!.IndexingStatus.ToString() ?? string.Empty)"
+            Sortable="true" />
+        <PropertyColumn Title="Type" Property="@(c => c!.IndexingType ?? string.Empty)" Sortable="true" />
         <TemplateColumn Title="Actions">
             <FluentButton Appearance="Appearance.Outline" @onclick="@(() => DeleteVideo(context.VideoId))">
                 Delete
@@ -97,19 +36,11 @@
     </EmptyContent>
 </FluentDataGrid>
 
+<AddVideoDialog @bind-Hidden="isDialogHidden" OnVideoAdded="HandleVideoAdded" />
+
 @code {
     private IQueryable<Video>? videos;
-    private FluentDialog? addVideoDialog;
-    
-    // Form fields for add video dialog
-    private string newVideoUrl = string.Empty;
-    private string newVideoName = string.Empty;
-    private bool shouldIndexVideo = true;
-    
-    // UI state
-    private bool isAddingVideo = false;
-    private string addVideoErrorMessage = string.Empty;
-    private bool isDialogHidden = true; // Dialog should be hidden by default
+    private bool isDialogHidden = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,78 +58,29 @@
 
     private void OpenAddVideoDialog()
     {
-        // Reset form fields
-        newVideoUrl = string.Empty;
-        newVideoName = string.Empty;
-        shouldIndexVideo = true;
-        addVideoErrorMessage = string.Empty;
-        
-        // Show the dialog
         isDialogHidden = false;
     }
 
-    private void CloseAddVideoDialog()
+    private async Task HandleVideoAdded(Video newVideo)
     {
-        isDialogHidden = true;
-    }
-
-    private async Task AddVideo()
-    {
-        if (string.IsNullOrWhiteSpace(newVideoUrl) || string.IsNullOrWhiteSpace(newVideoName))
-        {
-            addVideoErrorMessage = "Please provide both video URL and video name.";
-            return;
-        }
-
-        isAddingVideo = true;
-        addVideoErrorMessage = string.Empty;
-        StateHasChanged();
-
-        try
-        {
-            // Call the RekaVisionService to add the video
-            var newVideo = await RekaVisionService.AddVideo(newVideoUrl, newVideoName, shouldIndexVideo);
-            
-            // Refresh the video list
-            var videoList = await RekaVisionService.GetAllVideos();
-            videos = videoList.AsQueryable();
-            
-            // Close the dialog
-            isDialogHidden = true;
-            
-            // Reset form fields
-            newVideoUrl = string.Empty;
-            newVideoName = string.Empty;
-            shouldIndexVideo = true;
-        }
-        catch (Exception ex)
-        {
-            addVideoErrorMessage = $"Failed to add video: {ex.Message}";
-        }
-        finally
-        {
-            isAddingVideo = false;
-            StateHasChanged();
-        }
+        var videoList = await RekaVisionService.GetAllVideos();
+        videos = videoList.AsQueryable();
     }
 
     private async Task DeleteVideo(Guid videoId)
     {
         try
         {
-            // Call the RekaVisionService to delete the video
             await RekaVisionService.DeleteVideos(new[] { videoId });
-            
-            // Refresh the video list
+
             var videoList = await RekaVisionService.GetAllVideos();
             videos = videoList.AsQueryable();
-            
+
             StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting video: {ex.Message}");
-            // TODO: Show error message to user
         }
     }
 }

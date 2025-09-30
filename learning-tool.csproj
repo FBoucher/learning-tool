@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.12.1" />
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.12.1" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Components/Dialog/" />
+  </ItemGroup>
 </Project>
