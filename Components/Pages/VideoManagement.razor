@@ -3,56 +3,129 @@
 @rendermode InteractiveServer
 @inject IRekaVisionService RekaVisionService
 @using LearningTool.Components.Dialog
+@using LearningTool.Domain
 
 <PageTitle>Video Management</PageTitle>
 
 <h1>Video Management</h1>
+<FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left">
+    <div style="margin-bottom: 1rem;">
+        <FluentButton Appearance="Appearance.Accent" @onclick="OpenAddVideoDialog">
+            Add Video
+        </FluentButton>
+    </div>
 
-<div style="margin-bottom: 1rem;">
-    <FluentButton Appearance="Appearance.Accent" @onclick="OpenAddVideoDialog">
-        Add Video
-    </FluentButton>
-</div>
+    <FluentDataGrid Id="videogrid" Items="@myVideos" RowSize="@DataGridRowSize.Large">
+        <ChildContent>
 
-<FluentDataGrid Id="videogrid" Items="@videos" RowSize="@DataGridRowSize.Large">
-    <ChildContent>
-        <PropertyColumn Title="Title" Property="@(c => c!.Title ?? string.Empty)" Sortable="true" />
+            <SelectColumn @bind-SelectedItems="@selectedVideos" SelectMode="DataGridSelectMode.Single"  ></SelectColumn>
 
-        <TemplateColumn Title="Thumbnail">
-                <img src="@(context!.Metadata.Thumbnail)" alt="Thumbnail" style="width: 100px; height: auto;" />
-        </TemplateColumn>
+            <PropertyColumn Title="Title" Property="@(c => c.Title ?? string.Empty)" Sortable="true" />
 
-        <PropertyColumn Title="Status" Property="@(c => c!.IndexingStatus.ToString() ?? string.Empty)"
-            Sortable="true" />
-        <PropertyColumn Title="Type" Property="@(c => c!.IndexingType ?? string.Empty)" Sortable="true" />
-        <TemplateColumn Title="Actions">
-            <FluentButton Appearance="Appearance.Outline" @onclick="@(() => DeleteVideo(context.VideoId))">
-                Delete
-            </FluentButton>
-        </TemplateColumn>
-    </ChildContent>
-    <EmptyContent>
-        <FluentIcon Value="@(new Icons.Filled.Size24.Crown())" Color="@Color.Accent" />&nbsp; Nothing to see here. Carry on!
-    </EmptyContent>
-</FluentDataGrid>
+            <TemplateColumn Title="Thumbnail">
+                    @if (context.Metadata != null && !string.IsNullOrEmpty(context.Metadata.Thumbnail))
+                    {
+                        <img src="@context.Metadata.Thumbnail" alt="Thumbnail" style="width: 100px; height: auto;" />
+                    }
+                    else
+                    {
+                        <div style="width: 100px; height: 56px; background-color: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">No Thumbnail</div>
+                    }
+            </TemplateColumn>
+
+            <PropertyColumn Title="Status" Property="@(c => c.IndexingStatus.ToString())"
+                Sortable="true" />
+            <PropertyColumn Title="Type" Property="@(c => c.IndexingType)" Sortable="true" />
+            <TemplateColumn Title="Actions">
+                <FluentButton Appearance="Appearance.Outline" @onclick="@(() => DeleteVideo(context.VideoId))">
+                    Delete
+                </FluentButton>
+            </TemplateColumn>
+        </ChildContent>
+        <EmptyContent>
+            <FluentIcon Value="@(new Icons.Filled.Size24.Crown())" Color="@Color.Accent" />&nbsp; Nothing to see here. Carry on!
+        </EmptyContent>
+    </FluentDataGrid>
+
+    <FluentDivider Role="DividerRole.Separator"></FluentDivider>
+
+    @if (myVideos.Any())
+    {
+    <div id="actions-section">   
+    @if (selectedVideos != null && selectedVideos.Any())
+    {
+        <div >
+            <h3>For this video</h3>
+
+        </div>
+    }
+    else
+    {
+        <div >
+            <h3>Search in ALL my videos</h3>
+            <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Center">
+                <FluentTextField Label="Search" @bind-Value="searchTerm" />
+                <FluentButton Appearance="Appearance.Outline" @onclick="SearchVideos" Disabled="@isSearching">
+                    Search
+                </FluentButton>
+            </FluentStack>
+
+            @if (isSearching)
+            {
+                <FluentProgress id="searchProgress"></FluentProgress>
+            }
+
+            <p>3 first result found</p>
+            @if (searchResults.Any())
+            {
+                <FluentDivider Role="DividerRole.Separator"></FluentDivider>
+
+                <FluentDataGrid Items="@searchResults.AsQueryable()" RowSize="@DataGridRowSize.Small" AutoFit="true" MultiLine="true">
+                    <ChildContent>
+                        <PropertyColumn Title="Score" Property="@(c => c.Score)" Sortable="true" />
+                        <PropertyColumn Title="Title" Property="@(c => c.Title)" Sortable="true" />
+                        <PropertyColumn Title="Start Time" Property="@(c => TimeSpan.FromSeconds(c.StartTimestamp).ToString(@"mm\:ss"))"  Sortable="true" />
+                        <PropertyColumn Title="End Time" Property="@(c => TimeSpan.FromSeconds(c.EndTimestamp).ToString(@"mm\:ss"))" Sortable="true" />
+                        <TemplateColumn Title="Caption">
+                            <p>@context.PlainTextCaption</p>
+                        </TemplateColumn>
+                    </ChildContent>
+                </FluentDataGrid>
+            }
+        </div>
+    }
+    </div>
+    }
+
+</FluentStack>
 
 <AddVideoDialog @bind-Hidden="isDialogHidden" OnVideoAdded="HandleVideoAdded" />
 
 @code {
-    private IQueryable<Video>? videos;
+    private IQueryable<Video> myVideos = new List<Video>().AsQueryable();
     private bool isDialogHidden = true;
+
+    private IEnumerable<Video> selectedVideos = new List<Video>();
+
+    private string searchTerm = string.Empty;
+
+    private int searchResultCount = 0;
+
+    private List<SearchResult> searchResults = new();
+
+    private bool isSearching = false;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             var videoList = await RekaVisionService.GetAllVideos();
-            videos = videoList.AsQueryable();
+            myVideos = videoList.AsQueryable();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error fetching videos: {ex.Message}");
-            videos = new List<Video>().AsQueryable();
+            myVideos = new List<Video>().AsQueryable();
         }
     }
 
@@ -64,7 +137,7 @@
     private async Task HandleVideoAdded(Video newVideo)
     {
         var videoList = await RekaVisionService.GetAllVideos();
-        videos = videoList.AsQueryable();
+        myVideos = videoList.AsQueryable();
     }
 
     private async Task DeleteVideo(Guid videoId)
@@ -74,13 +147,38 @@
             await RekaVisionService.DeleteVideos(new[] { videoId });
 
             var videoList = await RekaVisionService.GetAllVideos();
-            videos = videoList.AsQueryable();
+            myVideos = videoList.AsQueryable();
 
             StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting video: {ex.Message}");
+        }
+    }
+
+    private async Task SearchVideos()
+    {
+        isSearching = true;
+        try
+        {
+            var results = await RekaVisionService.Search(searchTerm);
+            foreach (var result in results)
+            {
+                result.Title = myVideos.FirstOrDefault(v => v.VideoId == result.VideoId)?.Title ?? string.Empty;
+            }
+            searchResults = results;
+            searchResultCount = results.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching videos: {ex.Message}");
+            searchResults = new();
+            searchResultCount = 0;
+        }
+        finally
+        {
+            isSearching = false;
         }
     }
 }

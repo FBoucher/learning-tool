@@ -17,7 +17,7 @@ public interface IRekaVisionService
     /// <param name="videoName">The name for the video</param>
     /// <param name="index">Whether to index the video</param>
     /// <returns>The uploaded video information</returns>
-    Task<Video> AddVideo(string videoUrl, string videoName, bool index = true);
+    Task<Video> AddVideo(string videoUrl, string videoName);
 
     /// <summary>
     /// Deletes videos from the Reka Vision service
@@ -25,4 +25,11 @@ public interface IRekaVisionService
     /// <param name="videoIds">The IDs of the videos to delete</param>
     /// <returns>A task representing the asynchronous operation</returns>
     Task DeleteVideos(IEnumerable<Guid> videoIds);
+
+    /// <summary>
+    /// Searches for video segments matching the query
+    /// </summary>
+    /// <param name="query">The search query</param>
+    /// <returns>A list of search results with timestamps</returns>
+    Task<List<SearchResult>> Search(string query);
 }

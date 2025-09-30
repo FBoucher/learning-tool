@@ -25,7 +25,7 @@
                 Video Name
             </FluentTextField>
 
-            <FluentCheckbox @bind-Value="shouldIndexVideo" Label="Index video for search" />
+            @* <FluentCheckbox @bind-Value="shouldIndexVideo" Label="Index video for search" /> *@
 
             @if (isAddingVideo)
             {
@@ -71,7 +71,7 @@
 
     private string newVideoUrl = string.Empty;
     private string newVideoName = string.Empty;
-    private bool shouldIndexVideo = true;
+    @* private bool shouldIndexVideo = true; *@
 
     private bool isAddingVideo = false;
     private string addVideoErrorMessage = string.Empty;
@@ -96,7 +96,7 @@
 
         try
         {
-            var newVideo = await RekaVisionService.AddVideo(newVideoUrl, newVideoName, shouldIndexVideo);
+            var newVideo = await RekaVisionService.AddVideo(newVideoUrl, newVideoName);
 
             await OnVideoAdded.InvokeAsync(newVideo);
 
@@ -104,7 +104,7 @@
 
             newVideoUrl = string.Empty;
             newVideoName = string.Empty;
-            shouldIndexVideo = true;
+            @* shouldIndexVideo = true; *@
         }
         catch (Exception ex)
         {

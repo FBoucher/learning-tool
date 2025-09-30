@@ -4,25 +4,7 @@ using System.Text.Json.Serialization;
 namespace LearningTool.Services;
 
 /// <summary>
-/// Response model for the Reka API videos/get endpoint
-/// </summary>
-public class RekaVideoResponse
-{
-    [JsonPropertyName("results")]
-    public List<RekaVideoDto> Results { get; set; } = new();
-}
-
-/// <summary>
-/// Response model for the Reka API videos/upload endpoint
-/// </summary>
-public class RekaVideoUploadResponse
-{
-    [JsonPropertyName("video")]
-    public RekaVideoDto Video { get; set; } = new();
-}
-
-/// <summary>
-/// Data transfer object for video information from Reka API
+/// Data transfer object for video information from Reka API (DTO)
 /// </summary>
 public class RekaVideoDto
 {

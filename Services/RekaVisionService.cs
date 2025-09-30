@@ -45,7 +45,7 @@ public class RekaVisionService : IRekaVisionService
         var responseContent = await SendRequestAsync(request, "fetch videos");
 
         // Save response to file
-        SaveResponseToFile(responseContent);
+        // SaveResponseToFile(responseContent);
 
         try
         {
@@ -78,7 +78,7 @@ public class RekaVisionService : IRekaVisionService
     /// <param name="videoName">The name for the video</param>
     /// <param name="index">Whether to index the video</param>
     /// <returns>The uploaded video information</returns>
-    public async Task<Video> AddVideo(string videoUrl, string videoName, bool index = true)
+    public async Task<Video> AddVideo(string videoUrl, string videoName)
     {
         _logger.LogInformation("Uploading video {VideoName} from URL {VideoUrl}", videoName, videoUrl);
 
@@ -88,7 +88,7 @@ public class RekaVisionService : IRekaVisionService
         var formData = new MultipartFormDataContent();
         formData.Add(new StringContent(videoUrl), "video_url");
         formData.Add(new StringContent(videoName), "video_name");
-        formData.Add(new StringContent(index.ToString().ToLowerInvariant()), "index");
+        formData.Add(new StringContent("true"), "index");
 
         request.Content = formData;
 
@@ -96,17 +96,24 @@ public class RekaVisionService : IRekaVisionService
 
         try
         {
+            // SaveResponseToFile(responseContent);
+
             // Deserialize the response
             var rekaResponse = JsonSerializer.Deserialize<RekaVideoUploadResponse>(responseContent, _jsonOptions);
 
-            if (rekaResponse?.Video == null)
+            if (string.IsNullOrEmpty(rekaResponse?.VideoId))
             {
-                _logger.LogWarning("No video found in upload response or response format unexpected");
+                _logger.LogWarning("No video ID found in upload response or response format unexpected");
                 throw new InvalidOperationException("Failed to parse upload response from Reka Vision API");
             }
 
-            // Convert to domain model
-            var video = ConvertToVideo(rekaResponse.Video);
+            // Create Video object from response and input parameters
+            var video = new Video
+            {
+                VideoId = Guid.Parse(rekaResponse.VideoId),
+                Url = videoUrl,
+                IndexingStatus = ParseIndexingStatus(rekaResponse.Status)
+            };
 
             _logger.LogInformation("Successfully uploaded video {VideoName} with ID {VideoId}", videoName, video.VideoId);
             return video;
@@ -128,7 +135,6 @@ public class RekaVisionService : IRekaVisionService
         _logger.LogInformation("Deleting videos with IDs: {VideoIds}", string.Join(", ", videoIds));
 
         var request = CreateRequest(HttpMethod.Delete, $"{BaseEndpoint}/videos/delete");
-        request.Headers.Add("Content-Type", "application/json");
 
         // Create the request body
         var requestBody = new
@@ -141,6 +147,65 @@ public class RekaVisionService : IRekaVisionService
         await SendRequestAsync(request, "delete videos");
 
         _logger.LogInformation("Successfully deleted videos with IDs: {VideoIds}", string.Join(", ", videoIds));
+    }
+
+    /// <summary>
+    /// Searches for video segments matching the query
+    /// </summary>
+    /// <param name="query">The search query</param>
+    /// <returns>A list of search results with timestamps</returns>
+    public async Task<List<SearchResult>> Search(string query)
+    {
+        _logger.LogInformation("Searching videos with query: {Query}", query);
+
+        var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/search/hybrid");
+
+        // Create the request body
+        var requestBody = new
+        {
+            query = query,
+            max_results = 3,
+            threshold = 0.5
+        };
+        var jsonContent = JsonSerializer.Serialize(requestBody);
+        request.Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+
+        var responseContent = await SendRequestAsync(request, $"search videos with query {query}");
+
+        try
+        {
+
+            // SaveResponseToFile(responseContent);
+
+            // Deserialize the response - API returns array directly
+            var results = JsonSerializer.Deserialize<List<RekaSearchResultDto>>(responseContent, _jsonOptions);
+
+            if (results == null)
+            {
+                _logger.LogWarning("No search results found in response or response format unexpected");
+                return new List<SearchResult>();
+            }
+
+            // Convert to domain models
+            var domainResults = results.Select(r => new SearchResult
+            {
+                VideoChunkId = Guid.Parse(r.VideoChunkId),
+                VideoId = Guid.Parse(r.VideoId),
+                Score = r.Score,
+                StartTimestamp = r.StartTimestamp,
+                EndTimestamp = r.EndTimestamp,
+                S3PresignedUrl = r.S3PresignedUrl,
+                PlainTextCaption = r.PlainTextCaption
+            }).ToList();
+
+            _logger.LogInformation("Successfully retrieved {Count} search results", domainResults.Count);
+            return domainResults;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error deserializing search response from Reka Vision API");
+            throw new InvalidOperationException("Failed to parse search response from Reka Vision API", ex);
+        }
     }
 
     /// <summary>
@@ -216,7 +281,7 @@ public class RekaVisionService : IRekaVisionService
     {
         return status?.ToLowerInvariant() switch
         {
-            "pending" => IndexingStatus.Pending,
+            "pending" or "download_initiated" => IndexingStatus.Pending,
             "processing" or "indexing" => IndexingStatus.Indexing,
             "completed" or "indexed" => IndexingStatus.Indexed,
             "failed" => IndexingStatus.Failed,
