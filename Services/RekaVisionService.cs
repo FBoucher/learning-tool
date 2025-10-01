@@ -10,8 +10,6 @@ public class RekaVisionService : IRekaVisionService
     private readonly ILogger<RekaVisionService> _logger;
     private readonly string _rekaAPIKey;
     private readonly JsonSerializerOptions _jsonOptions;
-
-    // API base endpoint
     private const string BaseEndpoint = "https://vision-agent.api.reka.ai";
 
     public RekaVisionService(HttpClient httpClient, ILogger<RekaVisionService> logger, IConfiguration configuration)
@@ -58,7 +56,6 @@ public class RekaVisionService : IRekaVisionService
                 return new List<Video>();
             }
 
-            // Convert to domain models
             var videos = rekaResponse.Results.Select(ConvertToVideo).ToList();
 
             _logger.LogInformation("Successfully retrieved {Count} videos", videos.Count);
@@ -76,7 +73,6 @@ public class RekaVisionService : IRekaVisionService
     /// </summary>
     /// <param name="videoUrl">The URL of the video to upload</param>
     /// <param name="videoName">The name for the video</param>
-    /// <param name="index">Whether to index the video</param>
     /// <returns>The uploaded video information</returns>
     public async Task<Video> AddVideo(string videoUrl, string videoName)
     {
@@ -160,7 +156,7 @@ public class RekaVisionService : IRekaVisionService
         {
             query = query,
             max_results = 3,
-            threshold = 0.5
+            threshold = 0.6
         };
         var jsonContent = JsonSerializer.Serialize(requestBody);
         request.Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
