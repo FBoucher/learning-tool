@@ -28,14 +28,14 @@
             </TemplateColumn>
 
             <TemplateColumn Title="Thumbnail">
-                    @if (context.Metadata != null && !string.IsNullOrEmpty(context.Metadata.Thumbnail))
-                    {
-                        <img src="@context.Metadata.Thumbnail" alt="Thumbnail" style="width: 90px; height: auto;" />
-                    }
-                    else
-                    {
-                        <div style="width: 90px; height: 56px; background-color: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">No Thumbnail</div>
-                    }
+            @if (context.Metadata != null && !string.IsNullOrEmpty(context.Metadata.Thumbnail))
+            {
+                <img src="@context.Metadata.Thumbnail" alt="Thumbnail" style="width: 90px; height: auto;" />
+            }
+            else
+            {
+                <div style="width: 90px; height: 56px; background-color: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">No Thumbnail</div>
+            }
             </TemplateColumn>
 
             <PropertyColumn Title="Status" Property="@(c => c.IndexingStatus.ToString())"
@@ -55,50 +55,16 @@
 
     @if (myVideos is not null && myVideos!.Any())
     {
-    <div id="actions-section" style="width: 100%;">   
-    @if (selectedVideos != null && selectedVideos.Any())
-    {
-        <SingleVideoAction SelectedVideo="@selectedVideos.First()" />
-    }
-    else
-    {
-        <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left" style="width: 90%;">
-            <h3>Search in ALL my videos</h3>
-            <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Center">
-                <FluentTextField Label="Search" @bind-Value="searchTerm" style="width: 70%;"/>
-                <FluentButton Appearance="Appearance.Outline" @onclick="SearchVideos" Disabled="@isSearching">
-                    Search
-                </FluentButton>
-            </FluentStack>
-
-            @if (isSearching)
-            {
-                <FluentProgress id="searchProgress"></FluentProgress>
-            }
-        
-            @if (searchResults.Any())
-            {
-                <FluentCard MinimalStyle="true">
-
-                    <FluentDataGrid Items="@searchResults.AsQueryable()" RowSize="@DataGridRowSize.Small" AutoFit="true" MultiLine="true">
-                        <ChildContent>
-                            <PropertyColumn Title="Score" Property="@(c => c.Score)" Sortable="true" />
-                            <PropertyColumn Title="Title" Property="@(c => c.Title)" Sortable="true" />
-                            <PropertyColumn Title="Start Time" Property="@(c => TimeSpan.FromSeconds(c.StartTimestamp).ToString(@"mm\:ss"))"  Sortable="true" />
-                            <PropertyColumn Title="End Time" Property="@(c => TimeSpan.FromSeconds(c.EndTimestamp).ToString(@"mm\:ss"))" Sortable="true" />
-                            <TemplateColumn Title="Caption">
-                                <p>@context.PlainTextCaption</p>
-                            </TemplateColumn>
-                        </ChildContent>
-                    </FluentDataGrid>
-                    <div style="opacity: 0.6; font-size: 0.9em; margin-top: 10px;">
-                        Note: only the top 3 results are shown.
-                    </div>
-                </FluentCard>
-            }
-        </FluentStack>
-    }
-    </div>
+        <div id="actions-section" style="width: 100%;">   
+        @if (selectedVideos != null && selectedVideos.Any())
+        {
+            <SingleVideoAction SelectedVideo="@selectedVideos.First()" />
+        }
+        else
+        {
+            <MultiVideoAction MyVideos="@myVideos" />
+        }
+        </div>
     }
 
 </FluentStack>
@@ -112,14 +78,6 @@
     private bool isDialogHidden = true;
 
     private IEnumerable<Video> selectedVideos = new List<Video>();
-
-    private string searchTerm = string.Empty;
-
-    private int searchResultCount = 0;
-
-    private List<SearchResult> searchResults = new();
-
-    private bool isSearching = false;
 
     private GridSort<Video> sortByTitle = GridSort<Video>.ByAscending(v => v.Title);
 
@@ -162,31 +120,6 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting video: {ex.Message}");
-        }
-    }
-
-    private async Task SearchVideos()
-    {
-        isSearching = true;
-        try
-        {
-            var results = await RekaVisionService.Search(searchTerm);
-            foreach (var result in results)
-            {
-                result.Title = myVideos!.FirstOrDefault(v => v.VideoId == result.VideoId)?.Title ?? string.Empty;
-            }
-            searchResults = results;
-            searchResultCount = results.Count;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error searching videos: {ex.Message}");
-            searchResults = new();
-            searchResultCount = 0;
-        }
-        finally
-        {
-            isSearching = false;
         }
     }
 }
