@@ -1,0 +1,70 @@
+@inject IRekaVisionService RekaVisionService
+@using LearningTool.Domain
+@using Microsoft.AspNetCore.Components
+@using Microsoft.FluentUI.AspNetCore.Components
+
+<FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left" style="width: 90%;">
+    <h3>Search in ALL my videos</h3>
+    <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Center">
+        <FluentTextField Label="Search" @bind-Value="searchTerm" style="width: 70%;" />
+        <FluentButton Appearance="Appearance.Outline" @onclick="SearchVideos" Disabled="@isSearching">
+            Search
+        </FluentButton>
+    </FluentStack>
+
+    @if (isSearching)
+    {
+        <FluentProgress id="searchProgress"></FluentProgress>
+    }
+
+    @if (searchResults.Any())
+    {
+        <FluentCard MinimalStyle="true">
+            <FluentDataGrid Items="@searchResults.AsQueryable()" RowSize="@DataGridRowSize.Small" AutoFit="true" MultiLine="true">
+                <ChildContent>
+                    <PropertyColumn Title="Score" Property="@(c => c.Score)" Sortable="true" />
+                    <PropertyColumn Title="Title" Property="@(c => c.Title)" Sortable="true" />
+                    <PropertyColumn Title="Start Time" Property="@(c => TimeSpan.FromSeconds(c.StartTimestamp).ToString(@"mm\:ss"))" Sortable="true" />
+                    <PropertyColumn Title="End Time" Property="@(c => TimeSpan.FromSeconds(c.EndTimestamp).ToString(@"mm\:ss"))" Sortable="true" />
+                    <TemplateColumn Title="Caption">
+                        <p>@context.PlainTextCaption</p>
+                    </TemplateColumn>
+                </ChildContent>
+            </FluentDataGrid>
+            <div style="opacity: 0.6; font-size: 0.9em; margin-top: 10px;">
+                Note: only the top 3 results are shown.
+            </div>
+        </FluentCard>
+    }
+</FluentStack>
+
+@code {
+    [Parameter] public required IQueryable<Video> MyVideos { get; set; }
+
+    private string searchTerm = string.Empty;
+    private List<SearchResult> searchResults = new();
+    private bool isSearching = false;
+
+    private async Task SearchVideos()
+    {
+        isSearching = true;
+        try
+        {
+            var results = await RekaVisionService.Search(searchTerm);
+            foreach (var result in results)
+            {
+                result.Title = MyVideos.FirstOrDefault(v => v.VideoId == result.VideoId)?.Title ?? string.Empty;
+            }
+            searchResults = results;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching videos: {ex.Message}");
+            searchResults = new();
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+}
