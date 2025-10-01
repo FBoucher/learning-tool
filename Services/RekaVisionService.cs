@@ -232,7 +232,7 @@ public class RekaVisionService : IRekaVisionService
 
         try
         {
-            SaveResponseToFile(responseContent);
+            // SaveResponseToFile(responseContent);
 
             var rekaResponse = JsonSerializer.Deserialize<RekaQAAnswerDto>(responseContent, _jsonOptions);
 
