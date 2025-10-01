@@ -4,18 +4,20 @@
 @inject IRekaVisionService RekaVisionService
 @using LearningTool.Components.Dialog
 @using LearningTool.Domain
+@using Markdig
+@using Microsoft.AspNetCore.Components
 
 <PageTitle>Video Management</PageTitle>
 
 <h1>Video Management</h1>
-<FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left">
+<FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left" style="width: 100%;">
     <div style="margin-bottom: 1rem;">
         <FluentButton Appearance="Appearance.Accent" @onclick="OpenAddVideoDialog">
             Add Video
         </FluentButton>
     </div>
 
-    <FluentDataGrid Id="videogrid" Items="@myVideos" RowSize="@DataGridRowSize.Large">
+    <FluentDataGrid Id="videogrid" Items="@myVideos" RowSize="@DataGridRowSize.Large" Style="width: 90%;">
         <ChildContent>
 
             <SelectColumn @bind-SelectedItems="@selectedVideos" SelectMode="DataGridSelectMode.Single"  ></SelectColumn>
@@ -25,11 +27,11 @@
             <TemplateColumn Title="Thumbnail">
                     @if (context.Metadata != null && !string.IsNullOrEmpty(context.Metadata.Thumbnail))
                     {
-                        <img src="@context.Metadata.Thumbnail" alt="Thumbnail" style="width: 100px; height: auto;" />
+                        <img src="@context.Metadata.Thumbnail" alt="Thumbnail" style="width: 90px; height: auto;" />
                     }
                     else
                     {
-                        <div style="width: 100px; height: 56px; background-color: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">No Thumbnail</div>
+                        <div style="width: 90px; height: 56px; background-color: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">No Thumbnail</div>
                     }
             </TemplateColumn>
 
@@ -47,38 +49,77 @@
         </EmptyContent>
     </FluentDataGrid>
 
-    <FluentDivider Role="DividerRole.Separator"></FluentDivider>
-
-    @if (myVideos.Any())
+    @if (myVideos is not null && myVideos!.Any())
     {
-    <div id="actions-section">   
+    <div id="actions-section" style="width: 100%;">   
     @if (selectedVideos != null && selectedVideos.Any())
     {
-        <div >
-            <h3>For this video</h3>
-            <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Center">
-                <FluentTextField Label="Search" @bind-Value="searchTerm" />
-                <FluentButton Appearance="Appearance.Outline" @onclick="AskQuestion" Disabled="@isSearching">
-                    Ask
-                </FluentButton>
-            </FluentStack>
+        <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left" style="width: 90%;">
+            <h3>For the video: @selectedVideos.First().Title</h3>
+            <FluentTabs Style="width: 90%;">
+
+                <FluentTab Label="Q&A" Icon="@(new Icons.Regular.Size24.Search())" Id="tab-1">
+                    <FluentCard Width="100%">
+                        <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Bottom">
+                            <FluentTextField Label="Search" @bind-Value="searchTerm" style="width: 70%;"/>
+                            <FluentButton Appearance="Appearance.Accent" @onclick="AskQuestion" Disabled="@isSearching">
+                                Ask
+                            </FluentButton>
+                        </FluentStack>
+                        @if (isSearching)
+                        {
+                            <FluentProgress id="searchProgress"></FluentProgress>
+                        }
+                    </FluentCard>
+                </FluentTab>
+
+                <FluentTab Label="Studying" Icon="@(new Icons.Regular.Size24.LearningApp())" Id="tab-2">
+                    <FluentCard Width="100%">
+                        <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left">
+                            <p>Prepare studing tools for the topic convert in <b>@selectedVideos.First().Title</b></p>
+                            <FluentButton Appearance="Appearance.Accent" @onclick="HelpStudying" Disabled="@isSearching">
+                                Generate
+                            </FluentButton>
+                            @if (isSearching)
+                            {
+                                <FluentProgress id="searchProgress"></FluentProgress>
+                            }
+                        </FluentStack>
+                    </FluentCard>
+                </FluentTab>
+
+                <FluentTab Label="Presenting" Icon="@(new Icons.Regular.Size24.MoviesAndTv())" Id="tab-3">
+                    <FluentCard Width="100%">
+                        <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left">
+                            <p>Evaluate my presentation skills for <b>@selectedVideos.First().Title</b></p>
+                            <FluentButton Appearance="Appearance.Accent" @onclick="EvaluateVideo" Disabled="@isSearching">
+                                Evaluate
+                            </FluentButton>
+                            @if (isSearching)
+                            {
+                                <FluentProgress id="searchProgress"></FluentProgress>
+                            }
+                        </FluentStack>
+                    </FluentCard>
+                </FluentTab>
+
+            </FluentTabs>
 
             @if (!string.IsNullOrEmpty(qaAnswer))
             {
-                <FluentDivider Role="DividerRole.Separator"></FluentDivider>
-                <div>
+                <FluentCard MinimalStyle="true" Width="90%">>
                     <h4>Answer:</h4>
-                    <p>@qaAnswer</p>
-                </div>
+                    <p>@((MarkupString)qaAnswer)</p>
+                </FluentCard>
             }
-        </div>
+        </FluentStack>
     }
     else
     {
-        <div >
+        <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left" style="width: 90%;">
             <h3>Search in ALL my videos</h3>
             <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Center">
-                <FluentTextField Label="Search" @bind-Value="searchTerm" />
+                <FluentTextField Label="Search" @bind-Value="searchTerm" style="width: 70%;"/>
                 <FluentButton Appearance="Appearance.Outline" @onclick="SearchVideos" Disabled="@isSearching">
                     Search
                 </FluentButton>
@@ -88,25 +129,28 @@
             {
                 <FluentProgress id="searchProgress"></FluentProgress>
             }
-
-            <p>3 first result found</p>
+        
             @if (searchResults.Any())
             {
-                <FluentDivider Role="DividerRole.Separator"></FluentDivider>
+                <FluentCard MinimalStyle="true">
 
-                <FluentDataGrid Items="@searchResults.AsQueryable()" RowSize="@DataGridRowSize.Small" AutoFit="true" MultiLine="true">
-                    <ChildContent>
-                        <PropertyColumn Title="Score" Property="@(c => c.Score)" Sortable="true" />
-                        <PropertyColumn Title="Title" Property="@(c => c.Title)" Sortable="true" />
-                        <PropertyColumn Title="Start Time" Property="@(c => TimeSpan.FromSeconds(c.StartTimestamp).ToString(@"mm\:ss"))"  Sortable="true" />
-                        <PropertyColumn Title="End Time" Property="@(c => TimeSpan.FromSeconds(c.EndTimestamp).ToString(@"mm\:ss"))" Sortable="true" />
-                        <TemplateColumn Title="Caption">
-                            <p>@context.PlainTextCaption</p>
-                        </TemplateColumn>
-                    </ChildContent>
-                </FluentDataGrid>
+                    <FluentDataGrid Items="@searchResults.AsQueryable()" RowSize="@DataGridRowSize.Small" AutoFit="true" MultiLine="true">
+                        <ChildContent>
+                            <PropertyColumn Title="Score" Property="@(c => c.Score)" Sortable="true" />
+                            <PropertyColumn Title="Title" Property="@(c => c.Title)" Sortable="true" />
+                            <PropertyColumn Title="Start Time" Property="@(c => TimeSpan.FromSeconds(c.StartTimestamp).ToString(@"mm\:ss"))"  Sortable="true" />
+                            <PropertyColumn Title="End Time" Property="@(c => TimeSpan.FromSeconds(c.EndTimestamp).ToString(@"mm\:ss"))" Sortable="true" />
+                            <TemplateColumn Title="Caption">
+                                <p>@context.PlainTextCaption</p>
+                            </TemplateColumn>
+                        </ChildContent>
+                    </FluentDataGrid>
+                    <div style="opacity: 0.6; font-size: 0.9em; margin-top: 10px;">
+                        Note: only the top 3 results are shown.
+                    </div>
+                </FluentCard>
             }
-        </div>
+        </FluentStack>
     }
     </div>
     }
@@ -115,8 +159,10 @@
 
 <AddVideoDialog @bind-Hidden="isDialogHidden" OnVideoAdded="HandleVideoAdded" />
 
+<br/><br/>
+
 @code {
-    private IQueryable<Video> myVideos = new List<Video>().AsQueryable();
+    private IQueryable<Video>? myVideos = null;
     private bool isDialogHidden = true;
 
     private IEnumerable<Video> selectedVideos = new List<Video>();
@@ -174,92 +220,98 @@
     }
 
     private async Task SearchVideos()
-
     {
-
         isSearching = true;
-
         try
-
         {
-
             var results = await RekaVisionService.Search(searchTerm);
-
             foreach (var result in results)
-
             {
-
-                result.Title = myVideos.FirstOrDefault(v => v.VideoId == result.VideoId)?.Title ?? string.Empty;
-
+                result.Title = myVideos!.FirstOrDefault(v => v.VideoId == result.VideoId)?.Title ?? string.Empty;
             }
-
             searchResults = results;
-
             searchResultCount = results.Count;
-
         }
-
         catch (Exception ex)
-
         {
-
             Console.WriteLine($"Error searching videos: {ex.Message}");
-
             searchResults = new();
-
             searchResultCount = 0;
-
         }
-
         finally
-
         {
-
             isSearching = false;
-
         }
-
     }
 
     private async Task AskQuestion()
-
     {
-
         if (selectedVideos.Any())
-
         {
-
             isSearching = true;
-
             try
-
             {
-
                 var answer = await RekaVisionService.AskQuestion(selectedVideos.First().VideoId.ToString(), searchTerm);
-
-                qaAnswer = answer.Answer;
-
+                var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+                qaAnswer = Markdown.ToHtml(answer.Answer, pipeline);
             }
-
             catch (Exception ex)
-
             {
-
                 Console.WriteLine($"Error asking question: {ex.Message}");
-
-                qaAnswer = "Error occurred while asking the question.";
-
+                qaAnswer = Markdown.ToHtml("Error occurred while asking the question.");
             }
-
             finally
-
             {
-
                 isSearching = false;
-
             }
-
         }
+    }
 
+    private async Task HelpStudying()
+    {
+        if (selectedVideos.Any())
+        {
+            isSearching = true;
+            try
+            {
+                var instructions = $"Look at the topic covered in the vide. First, provide a concise summary of the main topics covered in the video. Then, generate a list of 5 multiple-choice questions (with 4 options each) related to the video's content. Finally, provide the answers to the questions with a brief explanation. Answer in markdown format.";
+                var answer = await RekaVisionService.AskQuestion(selectedVideos.First().VideoId.ToString(), instructions);
+
+                var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+                qaAnswer = Markdown.ToHtml(answer.Answer, pipeline);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error asking question: {ex.Message}");
+                qaAnswer = "Error occurred while asking the question.";
+            }
+            finally
+            {
+                isSearching = false;
+            }
+        }
+    }
+
+    private async Task EvaluateVideo()
+    {
+        if (selectedVideos.Any())
+        {
+            isSearching = true;
+            try
+            {
+                var instructions = $"Evaluate the presentation skills demonstrated in the video. Provide feedback on aspects such as clarity, engagement, body language, and overall effectiveness. Offer constructive criticism and suggest areas for improvement. Answer in markdown format.";
+                var answer = await RekaVisionService.AskQuestion(selectedVideos.First().VideoId.ToString(), instructions);
+                qaAnswer = Markdown.ToHtml(answer.Answer);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error asking question: {ex.Message}");
+                qaAnswer = "Error occurred while asking the question.";
+            }
+            finally
+            {
+                isSearching = false;
+            }
+        }
     }
 }

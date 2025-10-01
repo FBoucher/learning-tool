@@ -2,9 +2,11 @@ namespace LearningTool.Services;
 
 public class RekaQAAnswerDto
 {
-    public string answer { get; set; } = string.Empty;
-    public double confidence { get; set; }
-    public string video_id { get; set; } = string.Empty;
-    public string question { get; set; } = string.Empty;
-    public long timestamp { get; set; }
+    public string chat_response { get; set; } = string.Empty;
+    public string? system_message { get; set; }
+    public string? error { get; set; }
+    public string status { get; set; } = string.Empty;
+    public object? debug_chunks { get; set; }
+    public string debug_predicted_start_time { get; set; } = string.Empty;
+    public string debug_predicted_end_time { get; set; } = string.Empty;
 }

@@ -84,7 +84,6 @@ public class RekaVisionService : IRekaVisionService
 
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/videos/upload");
 
-        // Create form data content
         var formData = new MultipartFormDataContent();
         formData.Add(new StringContent(videoUrl), "video_url");
         formData.Add(new StringContent(videoName), "video_name");
@@ -98,7 +97,6 @@ public class RekaVisionService : IRekaVisionService
         {
             // SaveResponseToFile(responseContent);
 
-            // Deserialize the response
             var rekaResponse = JsonSerializer.Deserialize<RekaVideoUploadResponse>(responseContent, _jsonOptions);
 
             if (string.IsNullOrEmpty(rekaResponse?.VideoId))
@@ -107,7 +105,6 @@ public class RekaVisionService : IRekaVisionService
                 throw new InvalidOperationException("Failed to parse upload response from Reka Vision API");
             }
 
-            // Create Video object from response and input parameters
             var video = new Video
             {
                 VideoId = Guid.Parse(rekaResponse.VideoId),
@@ -136,7 +133,6 @@ public class RekaVisionService : IRekaVisionService
 
         var request = CreateRequest(HttpMethod.Delete, $"{BaseEndpoint}/videos/delete");
 
-        // Create the request body
         var requestBody = new
         {
             video_ids = videoIds.Select(id => id.ToString()).ToArray()
@@ -160,7 +156,6 @@ public class RekaVisionService : IRekaVisionService
 
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/search/hybrid");
 
-        // Create the request body
         var requestBody = new
         {
             query = query,
@@ -177,7 +172,6 @@ public class RekaVisionService : IRekaVisionService
 
             // SaveResponseToFile(responseContent);
 
-            // Deserialize the response - API returns array directly
             var results = JsonSerializer.Deserialize<List<RekaSearchResultDto>>(responseContent, _jsonOptions);
 
             if (results == null)
@@ -186,7 +180,6 @@ public class RekaVisionService : IRekaVisionService
                 return new List<SearchResult>();
             }
 
-            // Convert to domain models
             var domainResults = results.Select(r => new SearchResult
             {
                 VideoChunkId = Guid.Parse(r.VideoChunkId),
@@ -220,7 +213,6 @@ public class RekaVisionService : IRekaVisionService
 
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/qa/chat");
 
-        // Create the request body
         var requestBody = new
         {
             video_id = videoId,
@@ -240,7 +232,8 @@ public class RekaVisionService : IRekaVisionService
 
         try
         {
-            // Deserialize the response
+            SaveResponseToFile(responseContent);
+
             var rekaResponse = JsonSerializer.Deserialize<RekaQAAnswerDto>(responseContent, _jsonOptions);
 
             if (rekaResponse == null)
@@ -249,14 +242,19 @@ public class RekaVisionService : IRekaVisionService
                 throw new InvalidOperationException("Failed to parse QA response from Reka Vision API");
             }
 
-            // Convert to domain model
+            if (rekaResponse.status != "success")
+            {
+                _logger.LogError("QA request failed with status: {Status}, error: {Error}", rekaResponse.status, rekaResponse.error);
+                throw new InvalidOperationException($"QA request failed: {rekaResponse.error ?? "Unknown error"}");
+            }
+
             var answer = new QAAnswer
             {
-                Answer = rekaResponse.answer,
-                Confidence = rekaResponse.confidence,
-                VideoId = Guid.Parse(rekaResponse.video_id),
-                Question = rekaResponse.question,
-                Timestamp = DateTimeOffset.FromUnixTimeSeconds(rekaResponse.timestamp).DateTime
+                Answer = rekaResponse.chat_response,
+                Confidence = 1.0, // API does not provide confidence
+                VideoId = Guid.Parse(videoId),
+                Question = question,
+                Timestamp = DateTime.Now
             };
 
             _logger.LogInformation("Successfully retrieved answer for question about video {VideoId}", videoId);
