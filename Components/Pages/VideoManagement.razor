@@ -20,9 +20,11 @@
     <FluentDataGrid Id="videogrid" Items="@myVideos" RowSize="@DataGridRowSize.Large" Style="width: 90%;">
         <ChildContent>
 
-            <SelectColumn @bind-SelectedItems="@selectedVideos" SelectMode="DataGridSelectMode.Single"  ></SelectColumn>
+            <SelectColumn @bind-SelectedItems="@selectedVideos" SelectMode="DataGridSelectMode.Single"></SelectColumn>
 
-            <PropertyColumn Title="Title" Property="@(c => c.Title ?? string.Empty)" Sortable="true" />
+            <TemplateColumn Title="Title" SortBy="@sortByTitle">
+                <a href="@context.Url" target="_blank">@context.Title</a>
+            </TemplateColumn>
 
             <TemplateColumn Title="Thumbnail">
                     @if (context.Metadata != null && !string.IsNullOrEmpty(context.Metadata.Thumbnail))
@@ -38,6 +40,7 @@
             <PropertyColumn Title="Status" Property="@(c => c.IndexingStatus.ToString())"
                 Sortable="true" />
             <PropertyColumn Title="Type" Property="@(c => c.IndexingType)" Sortable="true" />
+            
             <TemplateColumn Title="Actions">
                 <FluentButton Appearance="Appearance.Outline" @onclick="@(() => DeleteVideo(context.VideoId))">
                     Delete
@@ -176,6 +179,8 @@
     private bool isSearching = false;
 
     private string qaAnswer = string.Empty;
+
+    private GridSort<Video> sortByTitle = GridSort<Video>.ByAscending(v => v.Title);
 
     protected override async Task OnInitializedAsync()
     {
