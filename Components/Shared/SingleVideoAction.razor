@@ -1,0 +1,117 @@
+@using Markdig
+@rendermode InteractiveServer
+@inject IRekaVisionService RekaVisionService
+
+<FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left" style="width: 90%;">
+    <h3>For the video: @SelectedVideo.Title</h3>
+    <FluentTabs Style="width: 90%;">
+
+        <FluentTab Label="Q&A" Icon="@(new Icons.Regular.Size24.Search())" Id="tab-1">
+            <FluentCard Width="100%" Height="auto">
+                <FluentStack Orientation="Orientation.Horizontal" Gap="10" VerticalAlignment="VerticalAlignment.Bottom">
+                    <FluentTextField Label="Search" @bind-Value="searchTerm" style="width: 70%;"/>
+                    <FluentButton Appearance="Appearance.Accent" OnClick="@(() => PrepareAction(ActionType.AskQuestion))" Disabled="@isSearching">
+                        Ask
+                    </FluentButton>
+                </FluentStack>
+                
+                <FluentProgress Visible="@isSearching"></FluentProgress>
+            </FluentCard>
+        </FluentTab>
+
+        <FluentTab Label="Studying" Icon="@(new Icons.Regular.Size24.LearningApp())" Id="tab-2">
+            <FluentCard Width="100%" Height="auto">
+                <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left">
+                    <p>Prepare studying tools for the topic covered in <b>@SelectedVideo.Title</b></p>
+                    <FluentButton Appearance="Appearance.Accent" OnClick="@(() => PrepareAction(ActionType.HelpStudying))" Disabled="@isSearching">
+                        Generate
+                    </FluentButton>
+                </FluentStack>
+
+                <FluentProgress Visible="@isSearching"></FluentProgress>
+            </FluentCard>
+        </FluentTab>
+
+        <FluentTab Label="Presenting" Icon="@(new Icons.Regular.Size24.MoviesAndTv())" Id="tab-3">
+            <FluentCard Width="100%" Height="auto">
+                <FluentStack Orientation="Orientation.Vertical" Gap="10" HorizontalAlignment="HorizontalAlignment.Left">
+                    <p>Evaluate my presentation skills for <b>@SelectedVideo.Title</b></p>
+                    <FluentButton Appearance="Appearance.Accent" OnClick="@(() => PrepareAction(ActionType.EvaluateVideo))" Disabled="@isSearching">
+                        Evaluate
+                    </FluentButton>
+                </FluentStack>
+                <FluentProgress Visible="@isSearching"></FluentProgress>
+            </FluentCard>
+        </FluentTab>
+
+    </FluentTabs>
+
+    @if (!string.IsNullOrEmpty(qaAnswer))
+    {
+        <FluentCard MinimalStyle="true" Width="90%">
+            <h4>Answer:</h4>
+            <p>@((MarkupString)qaAnswer)</p>
+        </FluentCard>
+    }
+</FluentStack>
+
+@code {
+    [Parameter]
+    public Video SelectedVideo { get; set; } = null!;
+
+    private string searchTerm = string.Empty;
+    private bool isSearching = false;
+    private string qaAnswer = string.Empty;
+    private enum ActionType
+    {
+        AskQuestion,
+        HelpStudying,
+        EvaluateVideo
+    }
+
+    private async Task PrepareAction(ActionType actionType)
+    {
+        qaAnswer = string.Empty;
+        var instructions = string.Empty;
+        
+        isSearching = true;
+        StateHasChanged(); 
+
+        switch (actionType)
+        {
+            case ActionType.AskQuestion:
+                instructions = searchTerm;
+                break;
+            case ActionType.HelpStudying:
+                instructions = $"Look at the topic covered in the vide. First, provide a concise summary of the main topics covered in the video. Then, generate a list of 5 multiple-choice questions (with 4 options each) related to the video's content. Finally, provide the answers to the questions with a brief explanation. Answer in markdown format.";
+                break;
+            case ActionType.EvaluateVideo:
+                instructions = $"Evaluate the presentation skills demonstrated in the video. Provide feedback on aspects such as clarity, engagement, body language, and overall effectiveness. Offer constructive criticism and suggest areas for improvement. Answer in markdown format.";
+                break;
+        }
+        await DoAction(instructions);
+    }
+
+
+
+    
+    private async Task DoAction(string instructions)
+    {
+        
+        try
+        {
+            var answer = await RekaVisionService.AskQuestion(SelectedVideo.VideoId.ToString(), instructions);
+            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            qaAnswer = Markdown.ToHtml(answer.Answer, pipeline);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error asking question: {ex.Message}");
+            qaAnswer = Markdown.ToHtml("Error occurred while asking the question.");
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+}
