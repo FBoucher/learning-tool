@@ -1,6 +1,5 @@
 using LearningTool.Domain;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace LearningTool.Services;
 
@@ -22,7 +21,6 @@ public class RekaVisionService : IRekaVisionService
                    ?? configuration["RekaAPIKey"]
                    ?? throw new ArgumentException("RekaAPIKey configuration is required. Set either REKA_API_KEY environment variable or RekaAPIKey in appsettings.json");
 
-        // Configure JSON serialization options
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
@@ -35,19 +33,15 @@ public class RekaVisionService : IRekaVisionService
     /// <returns>A list of Video objects</returns>
     public async Task<List<Video>> GetAllVideos()
     {
-        _logger.LogInformation("Fetching videos from Reka Vision API");
-
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/videos/get");
         request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
 
         var responseContent = await SendRequestAsync(request, "fetch videos");
 
-        // Save response to file
         // SaveResponseToFile(responseContent);
 
         try
         {
-            // Deserialize the response
             var rekaResponse = JsonSerializer.Deserialize<RekaVideoResponse>(responseContent, _jsonOptions);
 
             if (rekaResponse?.Results == null)
@@ -57,13 +51,10 @@ public class RekaVisionService : IRekaVisionService
             }
 
             var videos = rekaResponse.Results.Select(ConvertToVideo).ToList();
-
-            _logger.LogInformation("Successfully retrieved {Count} videos", videos.Count);
             return videos;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Error deserializing response from Reka Vision API");
             throw new InvalidOperationException("Failed to parse response from Reka Vision API", ex);
         }
     }
@@ -76,8 +67,6 @@ public class RekaVisionService : IRekaVisionService
     /// <returns>The uploaded video information</returns>
     public async Task<Video> AddVideo(string videoUrl, string videoName)
     {
-        _logger.LogInformation("Uploading video {VideoName} from URL {VideoUrl}", videoName, videoUrl);
-
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/videos/upload");
 
         var formData = new MultipartFormDataContent();
@@ -97,7 +86,6 @@ public class RekaVisionService : IRekaVisionService
 
             if (string.IsNullOrEmpty(rekaResponse?.VideoId))
             {
-                _logger.LogWarning("No video ID found in upload response or response format unexpected");
                 throw new InvalidOperationException("Failed to parse upload response from Reka Vision API");
             }
 
@@ -107,13 +95,10 @@ public class RekaVisionService : IRekaVisionService
                 Url = videoUrl,
                 IndexingStatus = ParseIndexingStatus(rekaResponse.Status)
             };
-
-            _logger.LogInformation("Successfully uploaded video {VideoName} with ID {VideoId}", videoName, video.VideoId);
             return video;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Error deserializing upload response from Reka Vision API for video {VideoName}", videoName);
             throw new InvalidOperationException($"Failed to parse upload response for video {videoName} from Reka Vision API", ex);
         }
     }
@@ -125,8 +110,6 @@ public class RekaVisionService : IRekaVisionService
     /// <returns>A task representing the asynchronous operation</returns>
     public async Task DeleteVideos(IEnumerable<Guid> videoIds)
     {
-        _logger.LogInformation("Deleting videos with IDs: {VideoIds}", string.Join(", ", videoIds));
-
         var request = CreateRequest(HttpMethod.Delete, $"{BaseEndpoint}/videos/delete");
 
         var requestBody = new
@@ -137,8 +120,6 @@ public class RekaVisionService : IRekaVisionService
         request.Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
 
         await SendRequestAsync(request, "delete videos");
-
-        _logger.LogInformation("Successfully deleted videos with IDs: {VideoIds}", string.Join(", ", videoIds));
     }
 
     /// <summary>
@@ -148,8 +129,6 @@ public class RekaVisionService : IRekaVisionService
     /// <returns>A list of search results with timestamps</returns>
     public async Task<List<SearchResult>> Search(string query)
     {
-        _logger.LogInformation("Searching videos with query: {Query}", query);
-
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/search/hybrid");
 
         var requestBody = new
@@ -165,7 +144,6 @@ public class RekaVisionService : IRekaVisionService
 
         try
         {
-
             // SaveResponseToFile(responseContent);
 
             var results = JsonSerializer.Deserialize<List<RekaSearchResultDto>>(responseContent, _jsonOptions);
@@ -186,13 +164,10 @@ public class RekaVisionService : IRekaVisionService
                 S3PresignedUrl = r.S3PresignedUrl,
                 PlainTextCaption = r.PlainTextCaption
             }).ToList();
-
-            _logger.LogInformation("Successfully retrieved {Count} search results", domainResults.Count);
             return domainResults;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Error deserializing search response from Reka Vision API");
             throw new InvalidOperationException("Failed to parse search response from Reka Vision API", ex);
         }
     }
@@ -205,8 +180,6 @@ public class RekaVisionService : IRekaVisionService
     /// <returns>The answer to the question</returns>
     public async Task<QAAnswer> AskQuestion(string videoId, string question)
     {
-        _logger.LogInformation("Asking question about video {VideoId}: {Question}", videoId, question);
-
         var request = CreateRequest(HttpMethod.Post, $"{BaseEndpoint}/qa/chat");
 
         var requestBody = new
@@ -234,13 +207,11 @@ public class RekaVisionService : IRekaVisionService
 
             if (rekaResponse == null)
             {
-                _logger.LogWarning("No answer found in response or response format unexpected");
                 throw new InvalidOperationException("Failed to parse QA response from Reka Vision API");
             }
 
             if (rekaResponse.status != "success")
             {
-                _logger.LogError("QA request failed with status: {Status}, error: {Error}", rekaResponse.status, rekaResponse.error);
                 throw new InvalidOperationException($"QA request failed: {rekaResponse.error ?? "Unknown error"}");
             }
 
@@ -252,13 +223,10 @@ public class RekaVisionService : IRekaVisionService
                 Question = question,
                 Timestamp = DateTime.Now
             };
-
-            _logger.LogInformation("Successfully retrieved answer for question about video {VideoId}", videoId);
             return answer;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Error deserializing QA response from Reka Vision API");
             throw new InvalidOperationException("Failed to parse QA response from Reka Vision API", ex);
         }
     }
@@ -292,7 +260,6 @@ public class RekaVisionService : IRekaVisionService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "HTTP error occurred while {Operation}", operationName);
             throw new InvalidOperationException($"Failed to {operationName} from Reka Vision API", ex);
         }
         catch (Exception ex)
@@ -329,7 +296,6 @@ public class RekaVisionService : IRekaVisionService
         var responseFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", $"videos_response_{timestamp}.json");
         Directory.CreateDirectory(Path.GetDirectoryName(responseFilePath)!);
         File.WriteAllText(responseFilePath, responseContent);
-        _logger.LogInformation("Response saved to: {FilePath}", responseFilePath);
     }
 
     private static IndexingStatus ParseIndexingStatus(string status)

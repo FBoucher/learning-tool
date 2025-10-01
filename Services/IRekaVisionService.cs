@@ -15,7 +15,6 @@ public interface IRekaVisionService
     /// </summary>
     /// <param name="videoUrl">The URL of the video to upload</param>
     /// <param name="videoName">The name for the video</param>
-    /// <param name="index">Whether to index the video</param>
     /// <returns>The uploaded video information</returns>
     Task<Video> AddVideo(string videoUrl, string videoName);
 

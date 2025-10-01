@@ -2,9 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace LearningTool.Services;
 
-/// <summary>
-/// Response model for the Reka API videos/upload endpoint (DTO)
-/// </summary>
 public class RekaVideoUploadResponse
 {
     [JsonPropertyName("video_id")]
